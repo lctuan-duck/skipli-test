@@ -5,21 +5,40 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MdArrowBack } from "react-icons/md";
 import Link from "next/link";
+import { useAuth } from "@/store/use-auth";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { AiOutlineLoading } from "react-icons/ai";
 
 type FormData = {
   code: string;
 };
 
 export default function VerifyCode() {
+  const { verifyPhoneNumber } = useAuth();
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<FormData>();
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
-  const onSubmit = (data: FormData) => {
-    // Xử lý xác thực code ở đây
-    alert(`Code: ${data.code}`);
+  const onSubmit = async (data: FormData) => {
+    try {
+      setIsLoading(true);
+      const phone = searchParams.get('phone') || ''
+
+      await verifyPhoneNumber(phone, data.code.trim());
+
+      router.push('/dashboard');
+    } catch (error) {
+      console.error("Failed to verify code:", error);
+    } finally {
+      setIsLoading(false);
+    }
+
   };
 
   return (
@@ -40,7 +59,8 @@ export default function VerifyCode() {
             <p className="text-red-500 text-sm">{errors.code.message}</p>
           )}
           <Button type="submit" className="w-full" size="lg">
-            Submit
+            {isLoading && <AiOutlineLoading className="animate-spin mr-2" />}
+            {isLoading ? 'Sending...' : 'Submit'}
           </Button>
         </form>
         <p className="text-center text-gray-600 text-sm mt-2">

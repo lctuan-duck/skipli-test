@@ -5,21 +5,39 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MdArrowBack } from "react-icons/md";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { useAuth } from "@/store/use-auth";
 
 type FormData = {
   code: string;
 };
 
 export default function VerifyEmail() {
+  const { verifyEmail } = useAuth();
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<FormData>();
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
-  const onSubmit = (data: FormData) => {
-    // Xử lý xác thực code email ở đây
-    alert(`Email code: ${data.code}`);
+  const onSubmit = async (data: FormData) => {
+    try {
+      setIsLoading(true);
+      const email = searchParams.get('email') || ''
+
+      await verifyEmail(email, data.code.trim());
+
+      router.push('/dashboard');
+    } catch (error) {
+      console.error("Failed to verify code:", error);
+    } finally {
+      setIsLoading(false);
+    }
+
   };
 
   return (

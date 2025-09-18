@@ -1,74 +1,94 @@
 import { create } from "zustand";
-
-// Kiểu dữ liệu cho student
-export interface Student {
-  name: string;
-  email: string;
-  status: string;
-  phone?: string;
-  role?: string;
-  address?: string;
-}
+import axiosInstance from "@/lib/axios";
+import { CreateStudentPayload, Student } from "@/types/student";
 
 interface StoreState {
+  currentStudent: Student | null;
   students: Student[];
-  loading: boolean;
   error: string | null;
   fetchStudents: () => Promise<void>;
-  addStudent: (student: Student) => Promise<void>;
+  addStudent: (student: CreateStudentPayload) => Promise<void>;
+  updateStudent: (student: Partial<Student>) => Promise<void>;
   deleteStudent: (email: string) => Promise<void>;
-  // ...các hàm khác nếu cần
 }
 
 export const useStudentsStore = create<StoreState>((set, get) => ({
+  currentStudent: null,
   students: [],
-  loading: false,
   error: null,
 
   async fetchStudents() {
-    set({ loading: true, error: null });
+    set({ error: null });
     try {
-      // Gọi API lấy danh sách học viên
-      // const res = await fetch("/api/students");
-      // const data = await res.json();
-      // set({ students: data, loading: false });
-      // Dummy data
-      set({
-        students: [
-          { name: "Student 1", email: "123@gmail.com", status: "Active" },
-          { name: "Student 2", email: "123@gmail.com", status: "Active" },
-          { name: "Student 3", email: "123@gmail.com", status: "Active" },
-          { name: "Student 4", email: "123@gmail.com", status: "Active" },
-        ],
-        loading: false,
-      });
-    } catch (err: any) {
-      set({ error: err.message || "Error", loading: false });
+      const res = await axiosInstance.get<{ data: Student[] }>(
+        `/api/instructor/students`
+      );
+      const result = res.data.data;
+
+      if (!Array.isArray(result)) throw new Error("Invalid data format");
+
+      set({ students: result });
+    } catch (err) {
+      if (err instanceof Error) {
+        set({ error: err.message || "Error" });
+      }
+      set({ error: "unknown error" });
     }
   },
 
-  async addStudent(student: Student) {
-    set({ loading: true, error: null });
+  async fetchStudentByPhone(phone: string) {
+    set({ error: null });
     try {
-      // Gọi API thêm học viên
-      // await fetch("/api/students", { method: "POST", body: JSON.stringify(student) });
-      set({ students: [student, ...get().students], loading: false });
-    } catch (err: any) {
-      set({ error: err.message || "Error", loading: false });
+      const res = await axiosInstance.get<Student>(
+        `/api/instructor/student/${phone}`
+      );
+      const result = res.data;
+
+      set({ currentStudent: result });
+    } catch (err) {
+      if (err instanceof Error) {
+        set({ error: err.message || "Error" });
+      }
+      set({ error: "unknown error" });
     }
   },
 
-  async deleteStudent(email: string) {
-    set({ loading: true, error: null });
+  async addStudent(student: CreateStudentPayload) {
+    set({ error: null });
     try {
-      // Gọi API xoá học viên
-      // await fetch(`/api/students/${email}`, { method: "DELETE" });
-      set({
-        students: get().students.filter((s: Student) => s.email !== email),
-        loading: false,
-      });
-    } catch (err: any) {
-      set({ error: err.message || "Error", loading: false });
+      await axiosInstance.post(`/api/instructor/student`, student);
+      await get().fetchStudents();
+    } catch (err) {
+      if (err instanceof Error) {
+        set({ error: err.message || "Error" });
+      }
+      set({ error: "unknown error" });
+    }
+  },
+  async updateStudent(student: Partial<Student>) {
+    set({ error: null });
+    try {
+      const { id, ...rest } = student;
+      await axiosInstance.put(`/api/instructor/student/${id}`, rest);
+      await get().fetchStudents();
+    } catch (err) {
+      if (err instanceof Error) {
+        set({ error: err.message || "Error" });
+      }
+      set({ error: "unknown error" });
+    }
+  },
+
+  async deleteStudent(phone: string) {
+    set({ error: null });
+    try {
+      await axiosInstance.delete(`/api/instructor/student/${phone}`);
+      await get().fetchStudents();
+    } catch (err) {
+      if (err instanceof Error) {
+        set({ error: err.message || "Error" });
+      }
+      set({ error: "unknown error" });
     }
   },
 }));

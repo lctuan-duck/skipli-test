@@ -1,27 +1,58 @@
 'use client';
-import React from "react";
+import React, { useMemo } from "react";
 import { Table, TableHeader, TableBody, TableRow, TableCell, TableHead } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import StudentCreateDialog from "@/components/student/student.create.dialog";
 import { useStudentsStore } from "@/store/use-students";
+import { Student } from "@/types/student";
+import { AiOutlineLoading } from "react-icons/ai";
+
 
 export default function StudentsPage() {
-  const { students, fetchStudents, addStudent, loading } = useStudentsStore();
-  const [filter, setFilter] = React.useState("");
+  const { students, fetchStudents, deleteStudent } = useStudentsStore();
   const [openDialog, setOpenDialog] = React.useState(false);
+  const [filter, setFilter] = React.useState("");
+  const [queue, setQueue] = React.useState<string[]>([]);
+  const [editStudent, setEditStudent] = React.useState<Student | null>(null);
 
   React.useEffect(() => {
     fetchStudents();
-  }, [fetchStudents]);
+  }, []);
 
-  const filteredStudents = students.filter(s =>
-    s.name.toLowerCase().includes(filter.toLowerCase()) ||
-    s.email.toLowerCase().includes(filter.toLowerCase())
-  );
+  // Ensure students is always an array
+  const filteredStudents = useMemo(() => (students || []).filter(s =>
+    s.name?.toLowerCase().includes(filter.toLowerCase()) ||
+    s.email?.toLowerCase().includes(filter.toLowerCase())
+  ), [students, filter]);
 
-  const handleCreateStudent = (data: any) => {
-    addStudent({ name: data.name, email: data.email, status: "Active" });
-  };
+
+  async function onEditStudent(student: Student) {
+    setEditStudent(student);
+    setOpenDialog(true);
+  }
+
+  async function onDeleteStudent(id: string) {
+    setQueue(prev => [...prev, id]);
+    await deleteStudent(id);
+    setQueue(prev => prev.filter(pid => pid !== id));
+  }
+
+  function checkQueueStatus(id: string) {
+    return queue.includes(id);
+  }
+
+  function getColorByStatus(status: string) {
+    switch (status) {
+      case "ACTIVE":
+        return "bg-green-50 text-green-600";
+      case "INACTIVE":
+        return "bg-gray-50 text-gray-600";
+      case "PENDING":
+        return "bg-yellow-50 text-yellow-600";
+      default:
+        return "bg-gray-50 text-gray-600";
+    }
+  }
 
   return (
     <div className="p-10">
@@ -58,11 +89,17 @@ export default function StudentsPage() {
                 <TableCell>{s.name}</TableCell>
                 <TableCell>{s.email}</TableCell>
                 <TableCell>
-                  <span className="px-3 py-1 rounded bg-green-50 text-green-600 text-xs">{s.status}</span>
+                  <span className={`px-3 py-1 rounded text-xs ${getColorByStatus(s.status)}`}>{s.status}</span>
                 </TableCell>
                 <TableCell className="flex gap-2">
-                  <Button variant="default" size="sm">Edit</Button>
-                  <Button variant="destructive" size="sm">Delete</Button>
+                  <Button variant="default" size="sm" disabled={checkQueueStatus(s.id)} onClick={() => onEditStudent(s)}>
+                    {checkQueueStatus(s.id) && <AiOutlineLoading className="animate-spin" />}
+                    Edit
+                  </Button>
+                  <Button variant="destructive" size="sm" disabled={checkQueueStatus(s.id)} onClick={() => onDeleteStudent(s.id)}>
+                    {checkQueueStatus(s.id) && <AiOutlineLoading className="animate-spin" />}
+                    Delete
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -70,9 +107,13 @@ export default function StudentsPage() {
         </Table>
       </div>
       <StudentCreateDialog
+        mode={editStudent ? "EDIT" : "ADD"}
+        data={editStudent}
         open={openDialog}
-        onOpenChange={setOpenDialog}
-        onCreate={handleCreateStudent}
+        onOpenChange={(value) => {
+          setEditStudent(null);
+          setOpenDialog(value);
+        }}
       />
     </div>
   );

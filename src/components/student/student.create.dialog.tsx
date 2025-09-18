@@ -2,37 +2,57 @@ import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-
+import { CreateStudentPayload, Student } from "@/types/student";
+import { useStudentsStore } from "@/store/use-students";
+import { AiOutlineLoading } from "react-icons/ai";
 export interface StudentCreateDialogProps {
   open: boolean;
+  mode: "EDIT" | "ADD";
+  data: Student | null;
   onOpenChange: (open: boolean) => void;
-  onCreate: (data: {
-    name: string;
-    phone: string;
-    email: string;
-    role: string;
-    address: string;
-  }) => void;
 }
 
-export default function StudentCreateDialog({ open, onOpenChange, onCreate }: StudentCreateDialogProps) {
+export default function StudentCreateDialog({ open, onOpenChange, mode, data }: StudentCreateDialogProps) {
+  const { addStudent, updateStudent } = useStudentsStore();
+  const [isPending, setIsPending] = React.useState(false);
   const [form, setForm] = React.useState({
     name: "",
     phone: "",
     email: "",
-    role: "",
+    role: "STUDENT" as "STUDENT" | "INSTRUCTOR",
     address: "",
   });
+
+  React.useEffect(() => {
+    if (mode === "EDIT" && data) {
+      setForm({
+        name: data.name || "",
+        phone: data.phone || "",
+        email: data.email || "",
+        role: data.role || "STUDENT",
+        address: data.address || "",
+      });
+    } else {
+      setForm({ name: "", phone: "", email: "", role: "STUDENT", address: "" });
+    }
+  }, [mode, data, open]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onCreate(form);
+    setIsPending(true);
+
+    if (mode === "EDIT" && data) {
+      await updateStudent({ id: data.id, ...form } as Student);
+    } else if (mode === "ADD")
+      await addStudent(form);
+
+    setIsPending(false);
     onOpenChange(false);
-    setForm({ name: "", phone: "", email: "", role: "", address: "" });
+    setForm({ name: "", phone: "", email: "", role: "STUDENT", address: "" });
   };
 
   return (
@@ -67,7 +87,14 @@ export default function StudentCreateDialog({ open, onOpenChange, onCreate }: St
           <DialogClose asChild>
             <Button type="button" variant="ghost">Cancel</Button>
           </DialogClose>
-          <Button type="submit" onClick={handleSubmit} className="bg-blue-600 text-white">Create</Button>
+          <Button type="submit" onClick={handleSubmit} className="bg-blue-600 text-white" >
+            {isPending && <AiOutlineLoading className="animate-spin" />}
+            {
+              mode === "EDIT" ?
+                isPending ? "Updating..." : "Update" :
+                isPending ? "Creating..." : "Create"
+            }
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

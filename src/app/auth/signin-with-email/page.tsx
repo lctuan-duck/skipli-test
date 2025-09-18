@@ -11,11 +11,11 @@ import { AiOutlineLoading } from "react-icons/ai";
 import { useRouter } from 'next/navigation'
 
 type FormData = {
-  phone: string;
+  email: string;
 };
 
 export default function SignIn() {
-  const { signInWithPhoneNumber } = useAuth();
+  const { signInWithEmail } = useAuth();
   const {
     register,
     handleSubmit,
@@ -27,12 +27,12 @@ export default function SignIn() {
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
     try {
-      await signInWithPhoneNumber(data.phone.trim());
+      await signInWithEmail(data.email.trim());
 
       const params = new URLSearchParams()
-      params.set('phone', data.phone.trim())
+      params.set('email', data.email.trim())
 
-      router.push(`/auth/verify-code?${params.toString()}`)
+      router.push(`/auth/verify-email?${params.toString()}`)
     } catch (error) {
       console.error("Failed to sign in:", error);
     } finally {
@@ -47,15 +47,15 @@ export default function SignIn() {
           <MdArrowBack size={20} /> Back
         </Button>
         <h2 className="text-2xl font-bold text-center mb-2">Sign In</h2>
-        <p className="text-center text-gray-600 mb-6">Please enter your phone to sign in</p>
+        <p className="text-center text-gray-600 mb-6">Please enter your email to sign in</p>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Input
             type="text"
-            placeholder="Your Phone Number"
-            {...register("phone", { required: "Phone is required" })}
+            placeholder="Your Email"
+            {...register("email", { required: "Email is required" })}
           />
-          {errors.phone && (
-            <p className="text-red-500 text-sm">{errors.phone.message}</p>
+          {errors.email && (
+            <p className="text-red-500 text-sm">{errors.email.message}</p>
           )}
           <Button type="submit" className="w-full" size="lg">
             {isLoading && <AiOutlineLoading className="animate-spin mr-2" />}

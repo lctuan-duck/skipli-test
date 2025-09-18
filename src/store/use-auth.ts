@@ -1,72 +1,87 @@
+import { API_URL } from "@/constants";
 import { create } from "zustand";
+import axiosInstance from "@/lib/axios";
 
 interface AuthState {
-  loading: boolean;
-  error: string | null;
   user: {
     phone?: string;
     email?: string;
     role?: string;
     token?: string;
   } | null;
-  signIn: (phone: string) => Promise<void>;
-  verifyCode: (phone: string, code: string) => Promise<void>;
+  signInWithPhoneNumber: (phone: string) => Promise<void>;
+  signInWithEmail: (email: string) => Promise<void>;
+  verifyPhoneNumber: (phone: string, code: string) => Promise<void>;
   verifyEmail: (email: string, code: string) => Promise<void>;
   signOut: () => void;
 }
 
 export const useAuth = create<AuthState>((set) => ({
-  loading: false,
-  error: null,
-  user: null,
+  user: (() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("user");
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch {
+          return null;
+        }
+      }
+    }
+    return null;
+  })(),
 
-  async signIn(phone: string) {
-    set({ loading: true, error: null });
+  async signInWithPhoneNumber(phone: string) {
     try {
-      // Gọi API gửi mã xác thực về điện thoại
-      // await fetch("/api/auth/signin", { method: "POST", body: JSON.stringify({ phone }) });
-      // Dummy: giả lập gửi mã thành công
-      set({ loading: false });
-    } catch (err: any) {
-      set({ error: err.message || "Sign in error", loading: false });
+      await axiosInstance.post(`/api/auth/access-code/${phone}`);
+    } catch (err) {
+      throw err;
+    }
+  },
+  async signInWithEmail(email: string) {
+    try {
+      await axiosInstance.post(`/api/auth/email/login`, { email });
+    } catch (err) {
+      throw err;
     }
   },
 
-  async verifyCode(phone: string, code: string) {
-    set({ loading: true, error: null });
+  async verifyPhoneNumber(phone: string, code: string) {
     try {
-      // Gọi API xác thực mã
-      // const res = await fetch("/api/auth/verify", { method: "POST", body: JSON.stringify({ phone, code }) });
-      // const data = await res.json();
-      // set({ user: data.user, loading: false });
-      // Dummy: giả lập xác thực thành công
-      set({
-        user: { phone, role: "student", token: "dummy-token" },
-        loading: false,
+      await axiosInstance.post(`/api/auth/phone/validate-access-code`, {
+        phone,
+        accessCode: code,
       });
-    } catch (err: any) {
-      set({ error: err.message || "Verify error", loading: false });
+      const user = { phone, role: "student" };
+      set({ user });
+      if (typeof window !== "undefined") {
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+    } catch (err) {
+      throw err;
     }
   },
 
   async verifyEmail(email: string, code: string) {
-    set({ loading: true, error: null });
     try {
-      // Gọi API xác thực mã email
-      // const res = await fetch("/api/auth/verify-email", { method: "POST", body: JSON.stringify({ email, code }) });
-      // const data = await res.json();
-      // set({ user: data.user, loading: false });
-      // Dummy: giả lập xác thực thành công
-      set({
-        user: { email, role: "student", token: "dummy-token" },
-        loading: false,
+      await axiosInstance.post(`/api/auth/email/validate-access-code`, {
+        email,
+        accessCode: code,
       });
-    } catch (err: any) {
-      set({ error: err.message || "Verify email error", loading: false });
+      const user = { email, role: "student" };
+      set({ user });
+      if (typeof window !== "undefined") {
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+    } catch (err) {
+      throw err;
     }
   },
 
   signOut() {
     set({ user: null });
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("user");
+    }
   },
 }));
